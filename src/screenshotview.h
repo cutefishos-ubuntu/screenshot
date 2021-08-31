@@ -29,9 +29,17 @@ class ScreenshotView : public QQuickView
 public:
     explicit ScreenshotView(QQuickView *parent = nullptr);
 
+    void start();
+    void delay(int value);
+
     Q_INVOKABLE void quit();
     Q_INVOKABLE void saveFile(QRect rect);
+    Q_INVOKABLE void copyToClipboard(QRect rect);
 
+    void removeTmpFile();
+
+signals:
+    void refresh();
 };
 
 #endif // SCREENSHOTVIEW_H

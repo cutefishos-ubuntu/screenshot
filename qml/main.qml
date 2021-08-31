@@ -30,15 +30,25 @@ Item {
     property rect cropRect
     property bool cropping: false
 
-    MouseArea {
-        anchors.fill: parent
-        onClicked: Qt.quit()
+    function refreshImage() {
+        image.source = ""
+        image.source = "file:///tmp/cutefish-screenshot.png"
+
+        selectImage.source = ""
+        selectImage.source = "file:///tmp/cutefish-screenshot.png"
+    }
+
+    Connections {
+        target: view
+
+        function onRefresh() {
+            control.refreshImage()
+        }
     }
 
     Image {
         id: image
         anchors.fill: parent
-        source: "file:///tmp/cutefish-screenshot.png"
         asynchronous: true
 
         Rectangle {
@@ -74,9 +84,10 @@ Item {
         }
 
         Image {
-            source: "file:///tmp/cutefish-screenshot.png"
+            id: selectImage
             width: control.width
             height: control.height
+            asynchronous: true
             x: -selectLayer.x
             y: -selectLayer.y
         }
@@ -86,6 +97,18 @@ Item {
             color: "transparent"
             border.width: 2
             border.color: FishUI.Theme.highlightColor
+        }
+
+        DragHandler {
+            target: selectLayer
+
+            xAxis.enabled: true
+            xAxis.minimum: control.x
+            xAxis.maximum: control.width - selectLayer.width
+
+            yAxis.enabled: true
+            yAxis.minimum: control.y
+            yAxis.maximum: control.height - selectLayer.height
         }
 
         MouseArea {
@@ -124,13 +147,32 @@ Item {
         height: 36 + FishUI.Units.smallSpacing
 
         visible: sizeToolTip.visible
-
         z: 999
-        x: selectLayer.x
-        y: selectLayer.y + selectLayer.height + FishUI.Units.smallSpacing
+
+        // 放在右侧
+        x: selectLayer.x + selectLayer.width - tools.width
+
+        y: {
+            var newY = 0
+
+//            if (selectLayer.y <= control.y
+//                    && selectLayer.height + tools.height >= control.height)
+//                newY = control.height - tools.height
+
+            // 选中区域与工具栏高度大于总高度
+            if (selectLayer.y + selectLayer.height + tools.height + FishUI.Units.smallSpacing >= control.height) {
+                newY = selectLayer.y - tools.height - FishUI.Units.smallSpacing
+            } else {
+                newY = selectLayer.y + selectLayer.height + FishUI.Units.smallSpacing
+            }
+
+            if (newY < control.y || newY > control.y + control.height)
+                newY = control.height - tools.height
+
+            return newY
+        }
 
         radius: FishUI.Theme.smallRadius
-
         color: FishUI.Theme.backgroundColor
 
         MouseArea {
@@ -150,10 +192,10 @@ Item {
                 iconMargins: FishUI.Units.largeSpacing
                 size: 36
                 source: "qrc:/images/save.svg"
-                onClicked: view.saveFile(Qt.rect(selectLayer.x,
-                                                 selectLayer.y,
-                                                 selectLayer.width,
-                                                 selectLayer.height))
+                onClicked: view.saveFile(Qt.rect(selectLayer.x * Screen.devicePixelRatio,
+                                                 selectLayer.y * Screen.devicePixelRatio,
+                                                 selectLayer.width * Screen.devicePixelRatio,
+                                                 selectLayer.height * Screen.devicePixelRatio))
             }
 
             ImageButton {
@@ -167,6 +209,12 @@ Item {
                 iconMargins: FishUI.Units.largeSpacing
                 size: 36
                 source: "qrc:/images/ok.svg"
+                onClicked: {
+                    view.copyToClipboard(Qt.rect(selectLayer.x * Screen.devicePixelRatio,
+                                                 selectLayer.y * Screen.devicePixelRatio,
+                                                 selectLayer.width * Screen.devicePixelRatio,
+                                                 selectLayer.height * Screen.devicePixelRatio))
+                }
             }
         }
     }

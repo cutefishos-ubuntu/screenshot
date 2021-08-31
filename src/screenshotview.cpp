@@ -18,6 +18,11 @@
  */
 
 #include "screenshotview.h"
+
+#include <QClipboard>
+#include <QEventLoop>
+#include <QTimer>
+
 #include <QGuiApplication>
 #include <QQmlContext>
 #include <QScreen>
@@ -28,15 +33,32 @@
 ScreenshotView::ScreenshotView(QQuickView *parent)
     : QQuickView(parent)
 {
+    rootContext()->setContextProperty("view", this);
+
+    setFlags(Qt::FramelessWindowHint);
+    setScreen(qGuiApp->primaryScreen());
+    setResizeMode(QQuickView::SizeRootObjectToView);
+    setSource(QUrl("qrc:/qml/main.qml"));
+}
+
+void ScreenshotView::start()
+{
     // 保存图片
     QPixmap p = qGuiApp->primaryScreen()->grabWindow(0);
     p.save("/tmp/cutefish-screenshot.png");
 
-    rootContext()->setContextProperty("view", this);
-
-    setResizeMode(QQuickView::SizeRootObjectToView);
-    setSource(QUrl("qrc:/qml/main.qml"));
     showFullScreen();
+
+    emit refresh();
+}
+
+void ScreenshotView::delay(int value)
+{
+    QEventLoop waitLoop;
+    QTimer::singleShot(value, &waitLoop, SLOT(quit()));
+    waitLoop.exec();
+
+    start();
 }
 
 void ScreenshotView::quit()
@@ -46,6 +68,8 @@ void ScreenshotView::quit()
 
 void ScreenshotView::saveFile(QRect rect)
 {
+    setVisible(false);
+
     QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
     QString fileName = QString("%1/Screenshot_%2.png")
                               .arg(desktopPath)
@@ -55,5 +79,24 @@ void ScreenshotView::saveFile(QRect rect)
     QImage cropped = image.copy(rect);
     cropped.save(fileName);
 
+    removeTmpFile();
     this->quit();
+}
+
+void ScreenshotView::copyToClipboard(QRect rect)
+{
+    setVisible(false);
+
+    QImage image("/tmp/cutefish-screenshot.png");
+    QImage cropped = image.copy(rect);
+    QClipboard *clipboard = qGuiApp->clipboard();
+    clipboard->setImage(cropped);
+
+    removeTmpFile();
+    this->quit();
+}
+
+void ScreenshotView::removeTmpFile()
+{
+    bool success = QFile("/tmp/cutefish-screenshot.png").remove();
 }
